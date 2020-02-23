@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>員工健康掃碼</title>
+</head>
+
+<body>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        hr {
+            margin-top: 32px;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin-bottom: 16px;
+        }
+
+        div {
+            margin-bottom: 16px;
+        }
+    </style>
+
+    <div style = "display: flex;
+    background: black;
+    justify-content: center;
+    height: 100vh;
+    align-items: center;">
+
+        <!-- <span id="cam-has-camera"></span> -->
+        <!-- <br> -->
+        <video muted playsinline id="qr-video"></video>
+    </div>
+    <!-- <div>
+    <select id="inversion-mode-select">
+        <option value="original">Scan original (dark QR code on bright background)</option>
+        <option value="invert">Scan with inverted colors (bright QR code on dark background)</option>
+        <option value="both">Scan both</option>
+    </select>
+    <br>
+</div> -->
+<div style="opacity: 0;">
+    <b>解析網址為: </b>
+    <span id="cam-qr-result">None</span>
+    <br>
+    <b>Last detected at: </b>
+    <span id="cam-qr-result-timestamp"></span>
+    <div>掃碼成功后會自動跳轉......</div>
+</div>
+    
+    <script src="../../js/jquery-3.4.1.min.js"></script>
+    <script>
+        function getDate() {
+            let da = '';
+            const now = new Date()
+            let nowM = now.getMonth() + 1
+            // eslint-disable-next-line camelcase
+            nowM = nowM < 10 ? '0' + nowM : nowM
+            let nowD = now.getDate()
+            nowD = nowD < 10 ? '0' + nowD : nowD
+            let hour = now.getHours()
+            hour = hour < 10 ? '0' + hour : hour
+            let minute = now.getMinutes()
+            minute = minute < 10 ? '0' + minute : minute
+            let second = now.getSeconds()
+            second = second < 10 ? '0' + second : second
+            da = now.getFullYear() + '-' + nowM + '-' + nowD + ' ' + hour + ':' + minute + ':' + second
+            // 日期格式2015-12-30 10:10
+            return da;
+        }
+        function saveMsg(qrcode) {
+            // var url="http://10.210.57.217:5000/scan/collect"
+            var url = "http://192.168.43.208:3000/api/index/scan/collect"
+            var par = {
+                emp_no: "H00000",
+                emp_name: "aaaaaa",
+                card_time: getDate(),
+                qrcode: qrcode
+            }
+            var proFun = new Promise(function (resolve, reject) {
+                $.post(url, par, function (res) {
+                    resolve(res)
+                })
+            })
+            return proFun
+
+        }
+    </script>
+    <script type="module">
+        import QrScanner from "../qr-scanner.min.js";
+        QrScanner.WORKER_PATH = '../qr-scanner-worker.min.js';
+
+        const video = document.getElementById('qr-video');
+        const camHasCamera = document.getElementById('cam-has-camera');
+        const camQrResult = document.getElementById('cam-qr-result');
+        const camQrResultTimestamp = document.getElementById('cam-qr-result-timestamp');
+        console.log(camQrResult.innerText)
+        function setResult(label, result) {
+            label.textContent = result;
+            camQrResultTimestamp.textContent = new Date().toString();
+            label.style.color = 'teal';
+            clearTimeout(label.highlightTimeout);
+            label.highlightTimeout = setTimeout(() => label.style.color = 'inherit', 100);
+        }
+
+        // ####### Web Cam Scanning #######
+
+        QrScanner.hasCamera().then(hasCamera => camHasCamera.textContent = hasCamera);
+
+        const scanner = new QrScanner(video, result => setResult(camQrResult, result));
+        scanner.start();
+
+        var myinterval = setInterval(function () {
+            if (camQrResult.innerText.toString().length > 10) {
+                // alert(1);
+                saveMsg(camQrResult.innerText.toString()).then(function (data) {
+                    console.log(data);
+                    if (data.error === 0) {
+                        window.clearInterval(myinterval);
+                        window.location.href = "../../mysuccessful.html?lasthref=" + camQrResult.innerText.toString()
+                    }
+                })
+
+            }
+        }, 500)
+
+        document.getElementById('inversion-mode-select').addEventListener('change', event => {
+            scanner.setInversionMode(event.target.value);
+        });
+
+    </script>
+</body>
+
+</html>
